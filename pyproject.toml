@@ -1,0 +1,26 @@
+[project]
+name = "SeeFonts"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [
+    {name = "Leo", email = "im.yczeng@foxmail.com"},
+]
+dependencies = ["fonttools[unicode,woff]>=4.59.2", "Brotli>=1.1.0", "zopfli>=0.2.3.post1", "fpdf>=1.7.2", "fpdf2>=2.8.4"]
+requires-python = "==3.10.*"
+readme = "README.md"
+license = {text = "MIT"}
+
+
+[tool.pdm]
+distribution = false
+
+
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+src_paths = ["src"]
+
+[tool.mypy]
+ignore_missing_imports = true

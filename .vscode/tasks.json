@@ -1,0 +1,114 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build seefont",
+            "type": "shell",
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/subset_font.py",
+                "${workspaceFolder}/fonts/PlangothicP1-Regular.ttf",
+                "${workspaceFolder}/fonts/PlangothicP2-Regular.ttf",
+                // 字符集文件路径
+                "${workspaceFolder}/data/charset-han.txt",
+                // 输出字体路径
+                "${workspaceFolder}/output/SeeFont-Regular.ttf",
+                // 字体元数据配置
+                "--family",
+                "SeeFont",
+                "--style",
+                "Regular",
+                "--full-name",
+                "SeeFont Regular",
+                "--version",
+                "1.0.0",
+                "--copyright",
+                "© 2025 SeeDict"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+        },
+        {
+            "label": "dist seefont",
+            "type": "shell",
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/dist_webfont.py",
+                "${workspaceFolder}/output/SeeFont-Regular.ttf",
+                "${workspaceFolder}/dist/SeeFont",
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+        },
+        {
+            "label": "build seeyngping",
+            "type": "shell",
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/subset_font.py",
+                "${workspaceFolder}/fonts/NotoSans-Regular.ttf",
+                // 字符集文件路径
+                "${workspaceFolder}/data/charset-latin.txt",
+                // 输出字体路径
+                "${workspaceFolder}/output/SeeYngping-Regular.ttf",
+                // 字体元数据配置
+                "--family",
+                "SeeYngping",
+                "--style",
+                "Regular",
+                "--full-name",
+                "SeeYngping Regular",
+                "--version",
+                "1.0.0",
+                "--copyright",
+                "© 2025 SeeDict"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+        },
+        {
+            "label": "dist seeyngping",
+            "type": "shell",
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/dist_webfont.py",
+                "${workspaceFolder}/output/SeeYngping-Regular.ttf",
+                "${workspaceFolder}/dist/SeeYngping",
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+        },
+    ]
+}
