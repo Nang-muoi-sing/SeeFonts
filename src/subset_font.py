@@ -211,7 +211,7 @@ def preview_pdf(ttf_path: str, output_dir: str) -> None:
 
     # 注册当前TTF字体到PDF
     font_id = "custom_font"
-    pdf.add_font(font_id, "", ttf_path, uni=True)
+    pdf.add_font(font_id, "", ttf_path)
 
     # 表格配置
     chars_per_row = 10

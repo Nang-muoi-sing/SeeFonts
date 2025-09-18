@@ -728,6 +728,6 @@ ọuk
 ö́ük
 ọ̈ük
 ë
-abcdefghijklmnopgrstuvwxzy
-ABCDEFGHIJKLMNOKQRSTUVWXYZ
+abcdefghijklmnopqrstuvwxyz
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
  
