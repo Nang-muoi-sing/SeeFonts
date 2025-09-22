@@ -72,9 +72,10 @@ def release_css(ttf_path: str, output_dir: str, family_name: str, base_name: str
     font-family: '{family_name}';
     src: url('fonts/{base_name}.woff2') format('woff2'),
          url('fonts/{base_name}.woff') format('woff'),
-         url('fonts/{base_name}.ttf') format('woff');
+         url('fonts/{base_name}.ttf') format('truetype');
     font-weight: normal;
     font-style: normal;
+    font-display: swap;
     {'unicode-range: ' + unicode_ranges + ';' if unicode_ranges else ''}
 }}
 """
