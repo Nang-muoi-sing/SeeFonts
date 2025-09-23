@@ -1,39 +1,210 @@
 {
     "version": "2.0.0",
-    "tasks": [
+    "inputs": [
         {
-            "label": "collect yngping",
+            "id": "fontVersion",
+            "type": "promptString",
+            "description": "请输入字体版本号",
+            "default": "1.0.0",
+        },
+        {
+            "id": "seeyngpingWeight",
+            "type": "pickString",
+            "description": "选择 SeeYngping 字重",
+            "options": [
+                "Regular",
+                "Bold"
+            ],
+            "default": "Regular"
+        }
+    ],
+    "tasks": [
+        // 1.1 SeeYngping 基础流程
+        {
+            "label": "SeeYngping: collect yngping",
             "type": "shell",
             "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
             "args": [
                 "${workspaceFolder}/src/collect_charset.py",
                 "${workspaceFolder}/data/yngping.txt",
-                "${workspaceFolder}/data/charset-latin.txt",
+                "${workspaceFolder}/data/charset-yngping.txt",
             ],
-            "group": "build",
+            "isBackground": true,
             "problemMatcher": [],
             "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared",
-                "showReuseMessage": true,
-                "clear": false
+                "panel": "shared"
             },
         },
         {
-            "label": "build seefont",
+            "label": "SeeYngping: subset andika",
+            "type": "shell",
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/subset_font.py",
+                "${workspaceFolder}/fonts/Andika-${input:seeyngpingWeight}.ttf",
+                "${workspaceFolder}/data/charset-ipatone.txt",
+                "${workspaceFolder}/output/Andika-ipatone-${input:seeyngpingWeight}.ttf"
+            ],
+            "presentation": {
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "SeeYngping: subset notosans",
+            "type": "shell",
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/subset_font.py",
+                "${workspaceFolder}/fonts/NotoSans-${input:seeyngpingWeight}.ttf",
+                "${workspaceFolder}/data/charset-yngping.txt",
+                "${workspaceFolder}/output/NotoSans-yngping-${input:seeyngpingWeight}.ttf"
+            ],
+            "presentation": {
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "SeeYngping: scale notosans upem",
+            "type": "shell",
+            "dependsOn": [
+                "SeeYngping: subset notosans"
+            ],
+            "command": "${workspaceFolder}\\venv\\Scripts\\fonttools.exe",
+            "args": [
+                "ttLib.scaleUpem",
+                "${workspaceFolder}/output/NotoSans-yngping-${input:seeyngpingWeight}.ttf",
+                "2048",
+                "--output-file",
+                "${workspaceFolder}/output/NotoSans-yngping-${input:seeyngpingWeight}-scaled.ttf"
+            ],
+            "presentation": {
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "SeeYngping: merge",
+            "type": "shell",
+            "dependsOn": [
+                "SeeYngping: subset andika",
+                "SeeYngping: scale notosans upem"
+            ],
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/merge_fonts.py",
+                "${workspaceFolder}/output/NotoSans-yngping-${input:seeyngpingWeight}-scaled.ttf",
+                "${workspaceFolder}/output/Andika-ipatone-${input:seeyngpingWeight}.ttf",
+                "${workspaceFolder}/output/SeeYngping-${input:seeyngpingWeight}.ttf",
+                "--family",
+                "SeeYngping",
+                "--style",
+                "${input:seeyngpingWeight}",
+                "--full-name",
+                "SeeYngping ${input:seeyngpingWeight}",
+                "--version",
+                "${input:fontVersion}",
+                "--copyright",
+                "© 2025 SeeDict"
+            ],
+            "presentation": {
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "SeeYngping: build",
+            "type": "shell",
+            "dependsOn": [
+                "SeeYngping: merge"
+            ],
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/charset_pdf.py",
+                "${workspaceFolder}/output/SeeYngping-${input:seeyngpingWeight}.ttf",
+                "${workspaceFolder}/output/SeeYngping-${input:seeyngpingWeight}-charset.pdf"
+            ],
+            "presentation": {
+                "panel": "shared"
+            }
+        },
+        // 1.2 SeeYngping 单字重发布
+        {
+            "label": "SeeYngping: dist regular",
+            "type": "shell",
+            "dependsOn": [
+                {
+                    "task": "SeeYngping: build",
+                    "inputs": [
+                        {
+                            "id": "seeyngpingWeight",
+                            "value": "Regular"
+                        }
+                    ]
+                }
+            ],
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/dist_webfont.py",
+                "${workspaceFolder}/output/SeeYngping-Regular.ttf",
+                "${workspaceFolder}/dist/SeeYngping",
+            ],
+            "presentation": {
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "SeeYngping: dist bold",
+            "type": "shell",
+            "dependsOn": [
+                {
+                    "task": "SeeYngping: build",
+                    "inputs": [
+                        {
+                            "id": "seeyngpingWeight",
+                            "value": "Bold"
+                        }
+                    ]
+                },
+                "SeeYngping: dist regular"
+            ],
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/dist_webfont.py",
+                "${workspaceFolder}/output/SeeYngping-Bold.ttf",
+                "${workspaceFolder}/dist/SeeYngping",
+                "--append"
+            ],
+            "presentation": {
+                "panel": "shared"
+            }
+        },
+        // 1.3 SeeYngping 总发布
+        {
+            "label": "SeeYngping: dist all",
+            "type": "shell",
+            "dependsOn": [
+                "SeeYngping: dist regular",
+                "SeeYngping: dist bold"
+            ],
+            "command": "echo",
+            "args": [
+                "成功发布 SeeYngping 所有字重，目录：${workspaceFolder}/dist/SeeYngping"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "focus": false
+            }
+        },
+        // 2. SeeFont 字体
+        {
+            "label": "SeeFont: subset",
             "type": "shell",
             "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
             "args": [
                 "${workspaceFolder}/src/subset_font.py",
                 "${workspaceFolder}/fonts/PlangothicP1-Regular.ttf",
                 "${workspaceFolder}/fonts/PlangothicP2-Regular.ttf",
-                // 字符集文件路径
                 "${workspaceFolder}/data/charset-han.txt",
-                // 输出字体路径
                 "${workspaceFolder}/output/SeeFont-Regular.ttf",
-                // 字体元数据配置
                 "--family",
                 "SeeFont",
                 "--style",
@@ -41,94 +212,67 @@
                 "--full-name",
                 "SeeFont Regular",
                 "--version",
-                "1.0.1",
+                "${input:fontVersion}",
                 "--copyright",
                 "© 2025 SeeDict"
             ],
-            "group": "build",
-            "problemMatcher": [],
             "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared",
-                "showReuseMessage": true,
-                "clear": false
-            },
+                "panel": "shared"
+            }
         },
         {
-            "label": "dist seefont",
+            "label": "SeeFont: build",
             "type": "shell",
+            "dependsOn": [
+                "SeeFont: subset"
+            ],
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/charset_pdf.py",
+                "${workspaceFolder}/output/SeeFont-Regular.ttf",
+                "${workspaceFolder}/output/SeeFont-Regular-charset.pdf"
+            ],
+            "presentation": {
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "SeeFont: dist",
+            "type": "shell",
+            "dependsOn": [
+                "SeeFont: build"
+            ],
             "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
             "args": [
                 "${workspaceFolder}/src/dist_webfont.py",
                 "${workspaceFolder}/output/SeeFont-Regular.ttf",
-                "${workspaceFolder}/dist/SeeFont",
+                "${workspaceFolder}/dist/SeeFont"
             ],
             "group": "build",
-            "problemMatcher": [],
             "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared",
-                "showReuseMessage": true,
-                "clear": false
-            },
+                "panel": "shared"
+            }
         },
+        // 3. 总任务（所有字体 + 所有字重）
         {
-            "label": "build seeyngping",
+            "label": "All: dist all fonts",
             "type": "shell",
-            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "dependsOn": [
+                "SeeYngping: dist all", // 先发布 SeeYngping 所有字重
+                "SeeFont: dist" // 再发布 SeeFont
+            ],
+            "command": "echo",
             "args": [
-                "${workspaceFolder}/src/subset_font.py",
-                "${workspaceFolder}/fonts/NotoSans-Regular.ttf",
-                // 字符集文件路径
-                "${workspaceFolder}/data/charset-latin.txt",
-                // 输出字体路径
-                "${workspaceFolder}/output/SeeYngping-Regular.ttf",
-                // 字体元数据配置
-                "--family",
-                "SeeYngping",
-                "--style",
-                "Regular",
-                "--full-name",
-                "SeeYngping Regular",
-                "--version",
-                "1.0.1",
-                "--copyright",
-                "© 2025 SeeDict"
+                "成功发布字体 SeeYngping 与 SeeFont ，目录：${workspaceFolder}/dist"
             ],
             "group": "build",
-            "problemMatcher": [],
             "presentation": {
                 "echo": true,
                 "reveal": "always",
-                "focus": false,
+                "focus": true,
                 "panel": "shared",
-                "showReuseMessage": true,
                 "clear": false
-            },
-        },
-        {
-            "label": "dist seeyngping",
-            "type": "shell",
-            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
-            "args": [
-                "${workspaceFolder}/src/dist_webfont.py",
-                "${workspaceFolder}/output/SeeYngping-Regular.ttf",
-                "${workspaceFolder}/dist/SeeYngping",
-            ],
-            "group": "build",
-            "problemMatcher": [],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared",
-                "showReuseMessage": true,
-                "clear": false
-            },
-        },
+            }
+        }
     ]
 }
