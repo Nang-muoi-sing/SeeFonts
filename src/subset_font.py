@@ -1,13 +1,12 @@
 import argparse
-import math
 import os
 from typing import Dict, List, Set, Tuple
 
 from fontTools.merge import Merger
 from fontTools.subset import Subsetter
 from fontTools.ttLib import TTFont
-from fontTools.ttLib.tables._n_a_m_e import NameRecord
-from fpdf import FPDF, XPos, YPos
+
+from utils import get_all_unicode_cmap, set_meta
 
 
 def read_charset(file_path: str) -> Set[str]:
@@ -26,58 +25,6 @@ def read_charset(file_path: str) -> Set[str]:
         charset.add(line)
 
     return charset
-
-
-def set_meta(font: TTFont, new_names: Dict[str, str]) -> None:
-    name_ids = {"family": 1, "style": 2, "full_name": 4, "version": 5, "copyright": 0}
-
-    name_table = font["name"]
-    name_type_map = {v: k for k, v in name_ids.items()}
-
-    # 收集原始字体中已有的所有名称记录的平台/语言配置
-    existing_configs = {}
-    for record in name_table.names:
-        name_type = name_type_map.get(record.nameID)
-        if not name_type:
-            continue
-
-        config_key = (record.platformID, record.platEncID, record.langID, record.nameID)
-        existing_configs[config_key] = record
-
-    # 处理需要修改的名称
-    for name_type, name_id in name_ids.items():
-        if name_type not in new_names or not new_names[name_type]:
-            continue
-
-        new_value = new_names[name_type]
-        type_configs = [k for k in existing_configs.keys() if k[3] == name_id]
-
-        if type_configs:
-            for config in type_configs:
-                record = existing_configs[config]
-                try:
-                    record.string = new_value.encode(record.getEncoding())
-                except (UnicodeEncodeError, LookupError):
-                    record.string = new_value.encode("utf-16be")
-        else:
-            # 没有现有配置，创建默认配置（Unicode平台，兼容现代系统）
-            print(f"警告: 字体中未找到 {name_type} 的记录，将创建默认配置")
-            new_record = NameRecord()
-            new_record.nameID = name_id
-            new_record.platformID = 0  # Unicode平台
-            new_record.platEncID = 3  # Unicode 2.0+
-            new_record.langID = 0x0409  # 英语(美国) - 通用默认
-            new_record.string = new_value.encode("utf-16be")
-            name_table.names.append(new_record)
-
-
-def get_all_unicode_cmap(font: TTFont) -> Dict[int, str]:
-    all_cmap = {}
-    for subtable in font["cmap"].tables:
-        if subtable.format in (4, 12, 10):
-            cmap = subtable.cmap
-            all_cmap.update(cmap)
-    return all_cmap
 
 
 def find_chars_in_fonts(
@@ -164,7 +111,10 @@ def subset_from_fonts(args) -> None:
         raise RuntimeError("错误: 无法创建任何临时字体文件")
 
     # 合并所有临时字体文件
-    merged_font = Merger().merge(temp_files)
+    if len(temp_files) > 1:
+        merged_font = Merger().merge(temp_files)
+    else:
+        merged_font = font
 
     # 设置元数据
     name_args = {
@@ -174,7 +124,8 @@ def subset_from_fonts(args) -> None:
         "version": args.version,
         "copyright": args.copyright,
     }
-    set_meta(merged_font, name_args)
+    if any(value is not None for value in name_args.values()):
+        set_meta(merged_font, name_args)
 
     # 保存最终结果
     merged_font.save(args.output)
@@ -189,67 +140,6 @@ def subset_from_fonts(args) -> None:
             os.remove(temp_file)
         except:
             pass
-
-
-def preview_pdf(ttf_path: str, output_dir: str) -> None:
-    ttf_name = os.path.splitext(os.path.basename(ttf_path))[0]
-    pdf_path = os.path.join(output_dir, f"{ttf_name}.pdf")
-
-    with TTFont(ttf_path) as font:
-        cmap = get_all_unicode_cmap(font)
-
-    codes = sorted(cmap.keys())
-    # 初始化PDF
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-
-    # 添加标题
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, f"{ttf_name} Charset", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
-    pdf.ln(10)
-
-    # 注册当前TTF字体到PDF
-    font_id = "custom_font"
-    pdf.add_font(font_id, "", ttf_path)
-
-    # 表格配置
-    chars_per_row = 10
-    cell_size = 18
-    char_font_size = 28
-    code_font_size = 8
-    total_chars = len(codes)
-    chars_per_page = 12 * chars_per_row
-    total_pages = math.ceil(total_chars / chars_per_page)
-
-    for page in range(total_pages):
-        if page > 0:
-            pdf.add_page()
-
-        start_idx = page * chars_per_page
-        end_idx = min((page + 1) * chars_per_page, total_chars)
-        page_codes = codes[start_idx:end_idx]
-
-        for i, code in enumerate(page_codes):
-            char = chr(code)
-
-            row = i // chars_per_row
-            col = i % chars_per_row
-            x = 15 + col * cell_size
-            y = 40 + row * cell_size
-
-            pdf.rect(x, y, cell_size, cell_size, "D")
-
-            pdf.set_xy(x, y + 2)
-            pdf.set_font("Helvetica", "", code_font_size)
-            pdf.cell(cell_size, 5, f"U+{code:04X}", align="C")
-
-            pdf.set_xy(x, y + 8)
-            pdf.set_font(font_id, "", char_font_size)
-            pdf.cell(cell_size, cell_size - 10, char, align="C")
-
-    pdf_path = os.path.join(output_dir, f"{ttf_name}-charset.pdf")
-    pdf.output(pdf_path)
 
 
 def main():
@@ -275,7 +165,6 @@ def main():
     args = parser.parse_args()
 
     subset_from_fonts(args)
-    preview_pdf(args.output, os.path.split(args.output)[0])
 
 
 if __name__ == "__main__":
