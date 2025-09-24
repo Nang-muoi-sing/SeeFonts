@@ -196,6 +196,21 @@
         },
         // 2. SeeFont 字体
         {
+            "label": "SeeFont: collect han",
+            "type": "shell",
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/collect_charset.py",
+                "${workspaceFolder}/data/han.txt",
+                "${workspaceFolder}/data/charset-han.txt",
+            ],
+            "isBackground": true,
+            "problemMatcher": [],
+            "presentation": {
+                "panel": "shared"
+            },
+        },
+        {
             "label": "SeeFont: subset",
             "type": "shell",
             "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
@@ -253,13 +268,87 @@
                 "panel": "shared"
             }
         },
+        {
+            "label": "SeeFontEx: collect han-ex",
+            "type": "shell",
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/collect_charset.py",
+                "${workspaceFolder}/data/han-ex.txt",
+                "${workspaceFolder}/data/charset-han-ex.txt",
+            ],
+            "isBackground": true,
+            "problemMatcher": [],
+            "presentation": {
+                "panel": "shared"
+            },
+        },
+        {
+            "label": "SeeFontEx: subset",
+            "type": "shell",
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/subset_font.py",
+                "${workspaceFolder}/fonts/PlangothicP1-Regular.ttf",
+                "${workspaceFolder}/fonts/PlangothicP2-Regular.ttf",
+                "${workspaceFolder}/data/charset-han-ex.txt",
+                "${workspaceFolder}/output/SeeFontEx-Regular.ttf",
+                "--family",
+                "SeeFontEx",
+                "--style",
+                "Regular",
+                "--full-name",
+                "SeeFontEx Regular",
+                "--version",
+                "${input:fontVersion}",
+                "--copyright",
+                "© 2025 SeeDict"
+            ],
+            "presentation": {
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "SeeFontEx: build",
+            "type": "shell",
+            "dependsOn": [
+                "SeeFontEx: subset"
+            ],
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/charset_pdf.py",
+                "${workspaceFolder}/output/SeeFontEx-Regular.ttf",
+                "${workspaceFolder}/output/SeeFontEx-Regular-charset.pdf"
+            ],
+            "presentation": {
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "SeeFontEx: dist",
+            "type": "shell",
+            "dependsOn": [
+                "SeeFontEx: build"
+            ],
+            "command": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+            "args": [
+                "${workspaceFolder}/src/dist_webfont.py",
+                "${workspaceFolder}/output/SeeFontEx-Regular.ttf",
+                "${workspaceFolder}/dist/SeeFontEx"
+            ],
+            "group": "build",
+            "presentation": {
+                "panel": "shared"
+            }
+        },
         // 3. 总任务（所有字体 + 所有字重）
         {
             "label": "All: dist all fonts",
             "type": "shell",
             "dependsOn": [
-                "SeeYngping: dist all", // 先发布 SeeYngping 所有字重
-                "SeeFont: dist" // 再发布 SeeFont
+                "SeeYngping: dist all",
+                "SeeFont: dist",
+                "SeeFontEx: dist"
             ],
             "command": "echo",
             "args": [
