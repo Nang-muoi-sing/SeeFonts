@@ -69,7 +69,7 @@ def preview_pdf(ttf_path: str, pdf_path: str) -> None:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="从多个字体中按顺序提取指定字符并合并生成新字体",
+        description="从字体中提取字符导出字符集 PDF",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 

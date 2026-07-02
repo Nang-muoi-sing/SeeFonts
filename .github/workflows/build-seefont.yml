@@ -1,0 +1,222 @@
+name: Build Fonts
+
+on:
+  workflow_dispatch:
+
+env:
+  UPSTREAM_REPO: Nang-muoi-sing/seedict-admin
+  UPSTREAM_REF: master
+  UPSTREAM_RESOURCES_PATH: resources
+  BUILD_ROOT: ${{ runner.temp }}/build-fonts
+  SEEFONT_CHARSET_PATH: ${{ runner.temp }}/build-fonts/SeeFont/charset-han.txt
+  SEEFONT_TTF_PATH: ${{ runner.temp }}/build-fonts/SeeFont/SeeFont-Regular.ttf
+  SEEFONT_PDF_PATH: ${{ runner.temp }}/build-fonts/SeeFont/SeeFont-Regular-charset.pdf
+  SEEFONT_DIST_PATH: ${{ runner.temp }}/build-fonts/SeeFont/dist
+  SEEYNGPING_CHARSET_PATH: ${{ runner.temp }}/build-fonts/SeeYngping/charset-yngping.txt
+
+jobs:
+  build-fonts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+
+      - name: Checkout upstream repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.UPSTREAM_REPO }}
+          ref: ${{ env.UPSTREAM_REF }}
+          ssh-key: ${{ secrets.UPSTREAM_SSH_KEY }}
+          path: _upstream
+          persist-credentials: false
+
+      - name: Copy resources from upstream
+        run: |
+          set -euo pipefail
+
+          src="_upstream/$UPSTREAM_RESOURCES_PATH"
+          dst="$RUNNER_TEMP/seedict/resources"
+
+          if [ ! -d "$src" ]; then
+            echo "Resources directory not found: $src" >&2
+            exit 1
+          fi
+
+          mkdir -p "$dst"
+          cp -R "$src"/. "$dst"/
+
+          echo "LOCAL_RESOURCES_PATH=$dst" >> "$GITHUB_ENV"
+
+      - name: Setup PDM
+        uses: pdm-project/setup-pdm@v4
+
+      - name: Install dependencies
+        run: pdm sync
+
+      - name: Read font version from pyproject
+        run: |
+          set -euo pipefail
+
+          font_version="$(pdm run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
+          echo "FONT_VERSION=$font_version" >> "$GITHUB_ENV"
+
+      - name: Build SeeFont charset
+        run: |
+          set -euo pipefail
+
+          pdm run python scripts/build_han_charset.py \
+            "$LOCAL_RESOURCES_PATH" \
+            "$SEEFONT_CHARSET_PATH" \
+            --extra-charset data/han.txt
+
+      - name: Build SeeFont
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$(dirname "$SEEFONT_TTF_PATH")"
+
+          pdm run python scripts/subset_font.py \
+            fonts/PlangothicP1-Regular.ttf \
+            fonts/PlangothicP2-Regular.ttf \
+            "$SEEFONT_CHARSET_PATH" \
+            "$SEEFONT_TTF_PATH" \
+            --family "SeeFont" \
+            --style "Regular" \
+            --full-name "SeeFont Regular" \
+            --version "$FONT_VERSION" \
+            --copyright "© 2025 SeeDict"
+
+      - name: Build SeeFont charset preview PDF
+        run: |
+          set -euo pipefail
+
+          pdm run python scripts/charset_pdf.py \
+            "$SEEFONT_TTF_PATH" \
+            "$SEEFONT_PDF_PATH"
+
+      - name: Build SeeFont webfonts
+        run: |
+          set -euo pipefail
+
+          pdm run python scripts/dist_webfont.py \
+            "$SEEFONT_TTF_PATH" \
+            "$SEEFONT_DIST_PATH"
+
+      - name: Sync SeeFont outputs to repository
+        run: |
+          set -euo pipefail
+
+          cp "$SEEFONT_CHARSET_PATH" data/charset-han.txt
+          cp "$SEEFONT_PDF_PATH" docs/SeeFont-Regular-charset.pdf
+
+      - name: Build SeeYngping charset
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$(dirname "$SEEYNGPING_CHARSET_PATH")"
+
+          pdm run python scripts/collect_charset.py \
+            data/yngping.txt \
+            "$SEEYNGPING_CHARSET_PATH"
+
+      - name: Build SeeYngping
+        run: |
+          set -euo pipefail
+
+          out_dir="$BUILD_ROOT/SeeYngping"
+          dist_dir="$out_dir/dist"
+          mkdir -p "$out_dir" "$dist_dir"
+
+          for weight in Regular Bold; do
+            pdm run python scripts/subset_font.py \
+              "fonts/Andika-${weight}.ttf" \
+              data/charset-ipatone.txt \
+              "$out_dir/Andika-ipatone-${weight}.ttf"
+
+            pdm run python scripts/subset_font.py \
+              "fonts/NotoSans-${weight}.ttf" \
+              "$SEEYNGPING_CHARSET_PATH" \
+              "$out_dir/NotoSans-yngping-${weight}.ttf"
+
+            pdm run fonttools ttLib.scaleUpem \
+              "$out_dir/NotoSans-yngping-${weight}.ttf" \
+              2048 \
+              --output-file "$out_dir/NotoSans-yngping-${weight}-scaled.ttf"
+
+            pdm run python scripts/merge_fonts.py \
+              "$out_dir/NotoSans-yngping-${weight}-scaled.ttf" \
+              "$out_dir/Andika-ipatone-${weight}.ttf" \
+              "$out_dir/SeeYngping-${weight}.ttf" \
+              --family "SeeYngping" \
+              --style "$weight" \
+              --full-name "SeeYngping ${weight}" \
+              --version "$FONT_VERSION" \
+              --copyright "© 2026 SeeDict"
+
+            pdm run python scripts/charset_pdf.py \
+              "$out_dir/SeeYngping-${weight}.ttf" \
+              "$out_dir/SeeYngping-${weight}-charset.pdf"
+          done
+
+          pdm run python scripts/dist_webfont.py \
+            "$out_dir/SeeYngping-Regular.ttf" \
+            "$dist_dir"
+
+          pdm run python scripts/dist_webfont.py \
+            "$out_dir/SeeYngping-Bold.ttf" \
+            "$dist_dir" \
+            --append
+
+      - name: Sync SeeYngping preview PDFs to repository
+        run: |
+          set -euo pipefail
+
+          cp "$SEEYNGPING_CHARSET_PATH" data/charset-yngping.txt
+          cp "$BUILD_ROOT/SeeYngping/SeeYngping-Regular-charset.pdf" docs/SeeYngping-Regular-charset.pdf
+          cp "$BUILD_ROOT/SeeYngping/SeeYngping-Bold-charset.pdf" docs/SeeYngping-Bold-charset.pdf
+
+      - name: Upload font artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fonts
+          path: |
+            ${{ env.BUILD_ROOT }}/SeeFont
+            ${{ env.BUILD_ROOT }}/SeeYngping
+          if-no-files-found: error
+
+      - name: Show changes
+        run: git status --short
+
+      - name: Commit updated charset and preview docs
+        run: |
+          set -euo pipefail
+
+          files_to_commit=()
+
+          if ! git diff --quiet -- data/charset-han.txt; then
+            files_to_commit+=(
+              data/charset-han.txt
+              docs/SeeFont-Regular-charset.pdf
+            )
+          fi
+
+          if ! git diff --quiet -- data/charset-yngping.txt; then
+            files_to_commit+=(
+              data/charset-yngping.txt
+              docs/SeeYngping-Regular-charset.pdf
+              docs/SeeYngping-Bold-charset.pdf
+            )
+          fi
+
+          if [ "${#files_to_commit[@]}" -eq 0 ]; then
+            echo "No charset-driven doc changes."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add "${files_to_commit[@]}"
+          git commit -m "data: update font charset assets at $(date '+%Y-%m-%d %H:%M:%S %z')"
+          git push

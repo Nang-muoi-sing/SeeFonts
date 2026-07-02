@@ -1,5 +1,6 @@
 import argparse
 import os
+import tempfile
 from typing import Dict, List, Set, Tuple
 
 from fontTools.merge import Merger
@@ -84,62 +85,58 @@ def subset_from_fonts(args) -> None:
     print(f"\n总共找到 {len(all_found_chars)} 个字符")
 
     # 为每个字体创建子集并保存为临时文件
-    temp_files = []
-    for i, (font_path, chars) in enumerate(font_chars.items()):
-        if not chars:
-            continue  # 跳过不包含任何所需字符的字体
+    with tempfile.TemporaryDirectory(prefix="subset_font_") as temp_dir:
+        temp_files = []
+        for i, (font_path, chars) in enumerate(font_chars.items()):
+            if not chars:
+                continue  # 跳过不包含任何所需字符的字体
 
-        font = TTFont(font_path)
+            font = TTFont(font_path)
 
-        # 转换为字符编码
-        char_codes = {ord(char) for char in chars}
+            # 转换为字符编码
+            char_codes = {ord(char) for char in chars}
 
-        # 保留需要的字符映射
-        for table in font["cmap"].tables:
-            if table.isUnicode():
-                table.cmap = {code: name for code, name in table.cmap.items() if code in char_codes}
+            # 保留需要的字符映射
+            for table in font["cmap"].tables:
+                if table.isUnicode():
+                    table.cmap = {
+                        code: name for code, name in table.cmap.items() if code in char_codes
+                    }
 
-        subsetter = Subsetter()
-        subsetter.populate(unicodes=char_codes)
-        subsetter.subset(font)
-        temp_path = f"temp/temp_font_{i}.ttf"
-        font.save(temp_path)
-        temp_files.append(temp_path)
-        font.close()
+            subsetter = Subsetter()
+            subsetter.populate(unicodes=char_codes)
+            subsetter.subset(font)
+            temp_path = os.path.join(temp_dir, f"temp_font_{i}.ttf")
+            font.save(temp_path)
+            temp_files.append(temp_path)
+            font.close()
 
-    if not temp_files:
-        raise RuntimeError("错误: 无法创建任何临时字体文件")
+        if not temp_files:
+            raise RuntimeError("错误: 无法创建任何临时字体文件")
 
-    # 合并所有临时字体文件
-    if len(temp_files) > 1:
-        merged_font = Merger().merge(temp_files)
-    else:
-        merged_font = font
+        # 合并所有临时字体文件；只有一个输入时直接重新打开该临时字体
+        if len(temp_files) > 1:
+            merged_font = Merger().merge(temp_files)
+        else:
+            merged_font = TTFont(temp_files[0])
 
-    # 设置元数据
-    name_args = {
-        "family": args.family,
-        "style": args.style,
-        "full_name": args.full_name,
-        "version": args.version,
-        "copyright": args.copyright,
-    }
-    if any(value is not None for value in name_args.values()):
-        set_meta(merged_font, name_args)
+        # 设置元数据
+        name_args = {
+            "family": args.family,
+            "style": args.style,
+            "full_name": args.full_name,
+            "version": args.version,
+            "copyright": args.copyright,
+        }
+        if any(value is not None for value in name_args.values()):
+            set_meta(merged_font, name_args)
 
-    # 保存最终结果
-    merged_font.save(args.output)
-    merged_font.close()
+        # 保存最终结果
+        merged_font.save(args.output)
+        merged_font.close()
 
     print(f"\n成功生成新字体: {args.output}")
     print(f"保留的字符数量: {len(all_found_chars)}")
-
-    # 清理临时文件
-    for temp_file in temp_files:
-        try:
-            os.remove(temp_file)
-        except:
-            pass
 
 
 def main():
