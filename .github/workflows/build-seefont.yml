@@ -8,6 +8,7 @@ env:
   UPSTREAM_REF: master
   UPSTREAM_RESOURCES_PATH: resources
   BUILD_ROOT: ${{ runner.temp }}/build-fonts
+  SEEFONT_EXTB_CHARSET_PATH: data/han-ex.txt
   SEEFONT_CHARSET_PATH: ${{ runner.temp }}/build-fonts/SeeFont/charset-han.txt
   SEEFONT_TTF_PATH: ${{ runner.temp }}/build-fonts/SeeFont/SeeFont-Regular.ttf
   SEEFONT_PDF_PATH: ${{ runner.temp }}/build-fonts/SeeFont/SeeFont-Regular-charset.pdf
@@ -61,14 +62,23 @@ jobs:
           font_version="$(pdm run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
           echo "FONT_VERSION=$font_version" >> "$GITHUB_ENV"
 
+      - name: Build SeeFont ext-b charset
+        run: |
+          set -euo pipefail
+
+          pdm run python scripts/collect_charset.py \
+            "$LOCAL_RESOURCES_PATH" \
+            "$SEEFONT_EXTB_CHARSET_PATH" \
+            --unicode-block ext-b
+
       - name: Build SeeFont charset
         run: |
           set -euo pipefail
 
-          pdm run python scripts/build_han_charset.py \
-            "$LOCAL_RESOURCES_PATH" \
-            "$SEEFONT_CHARSET_PATH" \
-            --extra-charset data/han.txt
+          pdm run python scripts/collect_charset.py \
+            "$SEEFONT_EXTB_CHARSET_PATH" \
+            data/han.txt \
+            "$SEEFONT_CHARSET_PATH"
 
       - name: Build SeeFont
         run: |
@@ -152,7 +162,7 @@ jobs:
               --style "$weight" \
               --full-name "SeeYngping ${weight}" \
               --version "$FONT_VERSION" \
-              --copyright "© 2026 SeeDict"
+              --copyright "© 2025 SeeDict"
 
             pdm run python scripts/charset_pdf.py \
               "$out_dir/SeeYngping-${weight}.ttf" \
@@ -194,8 +204,9 @@ jobs:
 
           files_to_commit=()
 
-          if ! git diff --quiet -- data/charset-han.txt; then
+          if ! git diff --quiet -- data/han-ex.txt data/charset-han.txt; then
             files_to_commit+=(
+              data/han-ex.txt
               data/charset-han.txt
               docs/SeeFont-Regular-charset.pdf
             )
