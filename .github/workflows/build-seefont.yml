@@ -7,13 +7,10 @@ env:
   UPSTREAM_REPO: Nang-muoi-sing/seedict-admin
   UPSTREAM_REF: master
   UPSTREAM_RESOURCES_PATH: resources
-  BUILD_ROOT: ${{ runner.temp }}/build-fonts
   SEEFONT_EXTB_CHARSET_PATH: data/han-ex.txt
-  SEEFONT_CHARSET_PATH: ${{ runner.temp }}/build-fonts/SeeFont/charset-han.txt
-  SEEFONT_TTF_PATH: ${{ runner.temp }}/build-fonts/SeeFont/SeeFont-Regular.ttf
-  SEEFONT_PDF_PATH: ${{ runner.temp }}/build-fonts/SeeFont/SeeFont-Regular-charset.pdf
-  SEEFONT_DIST_PATH: ${{ runner.temp }}/build-fonts/SeeFont/dist
-  SEEYNGPING_CHARSET_PATH: ${{ runner.temp }}/build-fonts/SeeYngping/charset-yngping.txt
+  SEEFONT_PDF_PATH: docs/SeeFont-Regular-charset.pdf
+  SEEYNGPING_REGULAR_PDF_PATH: docs/SeeYngping-Regular-charset.pdf
+  SEEYNGPING_BOLD_PDF_PATH: docs/SeeYngping-Bold-charset.pdf
 
 jobs:
   build-fonts:
@@ -61,6 +58,27 @@ jobs:
 
           font_version="$(pdm run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
           echo "FONT_VERSION=$font_version" >> "$GITHUB_ENV"
+
+      - name: Prepare build paths
+        run: |
+          set -euo pipefail
+
+          build_root="$RUNNER_TEMP/build-fonts"
+          seefont_build_dir="$build_root/SeeFont"
+          seeyngping_build_dir="$build_root/SeeYngping"
+
+          mkdir -p "$seefont_build_dir" "$seeyngping_build_dir"
+
+          {
+            echo "BUILD_ROOT=$build_root"
+            echo "SEEFONT_BUILD_DIR=$seefont_build_dir"
+            echo "SEEFONT_CHARSET_PATH=$seefont_build_dir/charset-han.txt"
+            echo "SEEFONT_TTF_PATH=$seefont_build_dir/SeeFont-Regular.ttf"
+            echo "SEEFONT_DIST_PATH=$seefont_build_dir/dist"
+            echo "SEEYNGPING_BUILD_DIR=$seeyngping_build_dir"
+            echo "SEEYNGPING_CHARSET_PATH=$seeyngping_build_dir/charset-yngping.txt"
+            echo "SEEYNGPING_DIST_PATH=$seeyngping_build_dir/dist"
+          } >> "$GITHUB_ENV"
 
       - name: Build SeeFont ext-b charset
         run: |
@@ -118,7 +136,6 @@ jobs:
           set -euo pipefail
 
           cp "$SEEFONT_CHARSET_PATH" data/charset-han.txt
-          cp "$SEEFONT_PDF_PATH" docs/SeeFont-Regular-charset.pdf
 
       - name: Build SeeYngping charset
         run: |
@@ -134,30 +151,28 @@ jobs:
         run: |
           set -euo pipefail
 
-          out_dir="$BUILD_ROOT/SeeYngping"
-          dist_dir="$out_dir/dist"
-          mkdir -p "$out_dir" "$dist_dir"
+          mkdir -p "$SEEYNGPING_BUILD_DIR" "$SEEYNGPING_DIST_PATH"
 
           for weight in Regular Bold; do
             pdm run python scripts/subset_font.py \
               "fonts/Andika-${weight}.ttf" \
               data/charset-ipatone.txt \
-              "$out_dir/Andika-ipatone-${weight}.ttf"
+              "$SEEYNGPING_BUILD_DIR/Andika-ipatone-${weight}.ttf"
 
             pdm run python scripts/subset_font.py \
               "fonts/NotoSans-${weight}.ttf" \
               "$SEEYNGPING_CHARSET_PATH" \
-              "$out_dir/NotoSans-yngping-${weight}.ttf"
+              "$SEEYNGPING_BUILD_DIR/NotoSans-yngping-${weight}.ttf"
 
             pdm run fonttools ttLib.scaleUpem \
-              "$out_dir/NotoSans-yngping-${weight}.ttf" \
+              "$SEEYNGPING_BUILD_DIR/NotoSans-yngping-${weight}.ttf" \
               2048 \
-              --output-file "$out_dir/NotoSans-yngping-${weight}-scaled.ttf"
+              --output-file "$SEEYNGPING_BUILD_DIR/NotoSans-yngping-${weight}-scaled.ttf"
 
             pdm run python scripts/merge_fonts.py \
-              "$out_dir/NotoSans-yngping-${weight}-scaled.ttf" \
-              "$out_dir/Andika-ipatone-${weight}.ttf" \
-              "$out_dir/SeeYngping-${weight}.ttf" \
+              "$SEEYNGPING_BUILD_DIR/NotoSans-yngping-${weight}-scaled.ttf" \
+              "$SEEYNGPING_BUILD_DIR/Andika-ipatone-${weight}.ttf" \
+              "$SEEYNGPING_BUILD_DIR/SeeYngping-${weight}.ttf" \
               --family "SeeYngping" \
               --style "$weight" \
               --full-name "SeeYngping ${weight}" \
@@ -165,17 +180,17 @@ jobs:
               --copyright "© 2025 SeeDict"
 
             pdm run python scripts/charset_pdf.py \
-              "$out_dir/SeeYngping-${weight}.ttf" \
-              "$out_dir/SeeYngping-${weight}-charset.pdf"
+              "$SEEYNGPING_BUILD_DIR/SeeYngping-${weight}.ttf" \
+              "$(if [ "$weight" = "Regular" ]; then echo "$SEEYNGPING_REGULAR_PDF_PATH"; else echo "$SEEYNGPING_BOLD_PDF_PATH"; fi)"
           done
 
           pdm run python scripts/dist_webfont.py \
-            "$out_dir/SeeYngping-Regular.ttf" \
-            "$dist_dir"
+            "$SEEYNGPING_BUILD_DIR/SeeYngping-Regular.ttf" \
+            "$SEEYNGPING_DIST_PATH"
 
           pdm run python scripts/dist_webfont.py \
-            "$out_dir/SeeYngping-Bold.ttf" \
-            "$dist_dir" \
+            "$SEEYNGPING_BUILD_DIR/SeeYngping-Bold.ttf" \
+            "$SEEYNGPING_DIST_PATH" \
             --append
 
       - name: Sync SeeYngping preview PDFs to repository
@@ -183,16 +198,14 @@ jobs:
           set -euo pipefail
 
           cp "$SEEYNGPING_CHARSET_PATH" data/charset-yngping.txt
-          cp "$BUILD_ROOT/SeeYngping/SeeYngping-Regular-charset.pdf" docs/SeeYngping-Regular-charset.pdf
-          cp "$BUILD_ROOT/SeeYngping/SeeYngping-Bold-charset.pdf" docs/SeeYngping-Bold-charset.pdf
 
       - name: Upload font artifacts
         uses: actions/upload-artifact@v4
         with:
           name: fonts
           path: |
-            ${{ env.BUILD_ROOT }}/SeeFont
-            ${{ env.BUILD_ROOT }}/SeeYngping
+            ${{ env.SEEFONT_BUILD_DIR }}
+            ${{ env.SEEYNGPING_BUILD_DIR }}
           if-no-files-found: error
 
       - name: Show changes
