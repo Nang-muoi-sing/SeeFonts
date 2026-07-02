@@ -3,6 +3,9 @@ name: Build Fonts
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 env:
   UPSTREAM_REPO: Nang-muoi-sing/seedict-admin
   UPSTREAM_REF: master
