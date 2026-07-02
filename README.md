@@ -7,5 +7,5 @@
 
 ## Fonts
 
-- [SeeFont](output/SeeFont-Regular-charset.pdf)：由[遍黑体（Plangothic）](https://github.com/Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project)子集化得到，主要包含拓展 B 区中的常见平话方言用字。
-- [SeeYngping](output/SeeYngping-Regular-charset.pdf)：基于 [Noto Sans](https://www.google.com/get/noto/) 与 [Andika](https://github.com/silnrsi/font-andika) 字体，包含基本拉丁字符与声调符号，用于支持榕拼手写方案与教会罗马字。
+- [SeeFont](docs/SeeFont-Regular-charset.pdf)：由[遍黑体（Plangothic）](https://github.com/Fitzgerald-Porthmouth-Koenigsegg/Plangothic_Project)子集化得到，主要包含拓展 B 区中的常见平话方言用字。
+- [SeeYngping](docs/SeeYngping-Regular-charset.pdf)：基于 [Noto Sans](https://www.google.com/get/noto/) 与 [Andika](https://github.com/silnrsi/font-andika) 字体，包含基本拉丁字符与声调符号，用于支持榕拼手写方案与教会罗马字。
