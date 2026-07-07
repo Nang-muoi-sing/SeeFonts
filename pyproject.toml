@@ -1,6 +1,6 @@
 [project]
 name = "SeeFonts"
-version = "1.0.4"
+version = "1.0.5"
 description = "Extended fonts for SeeDict."
 authors = [
     {name = "Leo", email = "im.yczeng@foxmail.com"},
